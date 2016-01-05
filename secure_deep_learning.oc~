@@ -1,0 +1,124 @@
+#include<obliv.oh>
+#include"deep2.h"
+#include<stdio.h>
+#include<stdlib.h>
+
+void extended_euclid(long long A1, long long A2, long long A3, long long B1, long long B2,long long B3)
+{
+  long long Q;
+  long long T1,T2,T3;
+  if(B3==0){
+    mul_inverse= -1;
+    return;
+  }
+  if(B3==1){
+    mul_inverse= B2;
+    return;
+  }
+  Q=(long long)(A3/B3);
+  T1=A1-Q*B1;
+  T2=A2-Q*B2;
+  T3=A3-Q*B3;
+  A1=B1;
+  A2=B2;
+  A3=B3;
+  B1=T1;
+  B2=T2;
+  B3=T3;
+  extended_euclid(A1,A2,A3,B1,B2,B3);
+}
+
+void initiateRandoms(void* args)
+{
+  protocolIO *io = args;
+  io->R1 = rand() %  294764863 + 2;  // 294764863 is a 9 digit prime number
+  extended_euclid(1, 0, P, 0, 1, io->R1);
+  io->R1_ = (mul_inverse>=0)?mul_inverse:(P + mul_inverse);
+  io->R2 = rand() %  294764863 + 2;
+  extended_euclid(1, 0, P, 0, 1, io->R2);
+  io->R2_ = (mul_inverse>=0)?mul_inverse:(P + mul_inverse);
+}
+
+obliv long long mul(obliv long long a, obliv long long b)
+{
+  obliv bool sign;
+  obliv long long s = 0;
+  long long bb;
+
+  obliv if(a>=0)  // Handling the sign of the inputs
+  {
+    obliv if(b>=0)
+      sign = false;
+    else
+      sign = true;
+  }
+  else
+  {
+    obliv if(b<0)
+      sign = false;
+    else
+      sign = true;
+  }
+  obliv if(a<0)
+    a = 0 - a;
+  obliv if(b<0)
+    b = 0 - b;
+  revealOblivLLong(&bb, b, 0);
+  while(bb)
+  {
+    if(bb%2)
+      s = (s+a)%P;
+    bb /= 2;
+    a = (a+a)%P;
+  }
+  obliv if(sign)
+    s = 0 - s;
+  return s;
+}
+
+void computeNN(void* args)
+{
+  obliv long long x[WIN*D], wx[WIN*D][H], w[H][C], h[H], y[C], R2;
+  obliv int res;
+  protocolIO *io = args;
+
+  for(int i = 0; i < WIN*D; i++)
+    x[i] = feedOblivLLong(io->x[i],1);
+
+  for(int i = 0; i < WIN*D; i++)
+    for(int j = 0; j < H; j++)
+      wx[i][j] = feedOblivLLong(io->wx[i][j],2);
+
+  for(int i = 0; i < H; i++)
+    for(int j = 0; j < C; j++)
+      w[i][j] = feedOblivLLong(io->w[i][j],2);
+
+  R2 = feedOblivLLong(io->R2,2);
+// Compute the output 'h' of hidden layer
+  for(int i = 0; i < H; i++)
+  {
+    h[i] = 0;
+    for(int j = 0; j < WIN*D; j++)
+      h[i] = (h[i] + mul(x[j], wx[j][i]))%P;
+    obliv if(mul(R2, h[i]) > 10000000000000)
+      h[i] -= P;
+    obliv if(mul(R2, h[i]) < -10000000000000)
+      h[i] += P;
+    obliv if(h[i] < 0)  // relu() non-linearity function
+      h[i] = 0;
+  }
+// Compute the output 'y' of output layer
+  for(int i = 0; i < C; i++)
+  {
+    y[i] = 0;
+    for(int j = 0; j < H; j++)
+      y[i] = (y[i] + mul(h[j], w[j][i]))%P;
+  }
+
+  obliv if(y[0] > y[1])
+    res = 0;
+  else
+    res = 1;
+  revealOblivInt(&io->res, res, 0);
+}
+

@@ -1,0 +1,2 @@
+testName=deep2
+include ../common/Makefile.simple
