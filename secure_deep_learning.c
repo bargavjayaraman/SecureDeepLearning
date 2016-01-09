@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<obliv.h>
 #include<string.h>
-#include"deep2.h"
+#include"secure_deep_learning.h"
 #include <time.h>
 
 #include"../common/util.h"
